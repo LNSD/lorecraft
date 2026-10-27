@@ -1,4 +1,4 @@
-"""The typed values of `--select`, `--ignore` and `rule [RULE]`, parsed and confirmed while the command line is read.
+"""The typed values of `--select` and `--ignore`, parsed and confirmed while the command line is read.
 
 A value is parsed into the form it has, and that form is confirmed against the rule index, so a command's handler is
 handed a value that names something. Two ways to refuse a value are told apart: **malformed**, which has the shape of
@@ -12,7 +12,7 @@ imports none of `lorecraft.rules.declaration`, `lorecraft.rules.subject`, `lorec
 `lorecraft.rules.selection`, `lorecraft.project` nor `lorecraft.engine` when the command line starts. The rule-side
 types are named for the checker under `TYPE_CHECKING`, and a conversion imports what it builds where it runs.
 
-Text enters through `SelectorValue.parse` and `RuleKey.parse`, which confirm it against the rule index. The selector
+Text enters through `SelectorValue.parse`, which confirms it against the rule index. The selector
 records have no `__post_init__` guard on membership: what makes one valid is the index's membership, which a guard
 would have to read at every construction, and a unit test of a conversion builds one for a registry of sample rules
 the index does not hold. Code builds them from `parse` alone. `CodeSelector` alone guards its number's range, which
@@ -34,7 +34,6 @@ from lorecraft.rules.index import ConditionRow, RemovedRuleRow, RuleIndexRow
 
 if TYPE_CHECKING:
     # Type-only: importing the rule side here would load the rules engine when the command line starts.
-    from lorecraft.rules.declaration import RuleDeclaration
     from lorecraft.rules.identity import RuleCode
     from lorecraft.rules.registry import Registry
     from lorecraft.rules.selection import RuleSelector
@@ -160,36 +159,6 @@ class IndexRuleNotInRegistryError(RuntimeError):
         super().__init__(f'the rule index lists {key!r}, which the registry does not hold: run `just gen`')
 
 
-class MalformedRuleKeyError(Error):
-    """A rule key has the shape of neither a rule's code nor a rule's name, and is no alias code a rule declares.
-
-    Attributes:
-        text: The key as typed.
-    """
-
-    text: str
-
-    def __init__(self, text: str) -> None:
-        self.text = text
-        super().__init__(
-            f'{text!r} is no rule code, name or alias code: write a code such as LC101 or a name such as empty-section'
-        )
-
-
-class UnknownRuleKeyError(Error):
-    """A rule key is well formed and names nothing: no rule, removed rule or engine condition has it.
-
-    Attributes:
-        text: The key as typed.
-    """
-
-    text: str
-
-    def __init__(self, text: str) -> None:
-        self.text = text
-        super().__init__(f'no rule has the code, name or alias code {text!r}')
-
-
 @dataclass(frozen=True, slots=True)
 class AllSelector:
     """The selector `ALL`: every rule."""
@@ -263,12 +232,7 @@ type RuleSelectorArgument = AllSelector | CodeSelector | AliasSelector
 
 
 class RuleIndex(Protocol):
-    """What parsing reads of the rule index: `lorecraft.rules.index` is one, and a unit test passes a small table."""
-
-    @property
-    def RULES(self) -> tuple[RuleIndexRow, ...]:  # noqa: N802
-        """Every rule, removed rule and engine condition, as a typed record."""
-        ...
+    """What CLI argument parsing reads of the rule index: lookup by code, name or alias."""
 
     def find(self, key: str, /) -> RuleIndexRow | None:
         """The row whose code, name or alias code is `key`, or None when none is."""
@@ -312,56 +276,6 @@ class SelectorValue:
     def __str__(self) -> str:
         """The selectors as typed, joined by commas."""
         return ','.join(str(selector) for selector in self.selectors)
-
-
-@dataclass(frozen=True, slots=True)
-class RuleKey:
-    """The argument of `rule [RULE]`: a rule's code, its name or an alias code, which the index has.
-
-    Attributes:
-        text: The key as typed.
-    """
-
-    text: str
-
-    @classmethod
-    def parse(cls, raw: str, rule_index: RuleIndex = index) -> Self:
-        """Parse the argument of `rule [RULE]`, confirmed against the rule index.
-
-        An alias code has no shape of its own: it is one exactly when the index finds a rule for it.
-
-        Args:
-            raw: The argument as typed.
-            rule_index: The rule index the key is confirmed against.
-
-        Raises:
-            MalformedRuleKeyError: If it has the shape of neither a code nor a name, and no rule declares it as an
-                alias code.
-            UnknownRuleKeyError: If it is shaped as a code or a name, and no rule has it.
-        """
-        if rule_index.find(raw) is not None:
-            return cls(raw)
-        if _has_code_shape(raw) or _has_name_shape(raw):
-            raise UnknownRuleKeyError(raw)
-        raise MalformedRuleKeyError(raw)
-
-    def to_declaration(self, registry: Registry) -> RuleDeclaration:
-        """The rule, removed rule or engine condition the key names.
-
-        Args:
-            registry: Every rule, which holds the declaration.
-
-        Raises:
-            IndexRuleNotInRegistryError: If the registry has no declaration for the key, which the index held.
-        """
-        declaration = registry.find(self.text)
-        if declaration is None:
-            raise IndexRuleNotInRegistryError(self.text)
-        return declaration
-
-    def __str__(self) -> str:
-        """The key as typed."""
-        return self.text
 
 
 def _parse_selector(text: str, rule_index: RuleIndex) -> RuleSelectorArgument:

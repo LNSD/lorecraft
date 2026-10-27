@@ -11,7 +11,7 @@ from typing import Annotated
 import typer
 
 from ..registry import register
-from ..rule_arguments import MalformedRuleKeyError, RuleKey, UnknownRuleKeyError
+from ..rule_key import MalformedRuleKeyError, RuleKey, UnknownRuleKeyError
 
 
 class _RuleKeyParser:
