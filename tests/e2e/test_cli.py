@@ -1915,7 +1915,7 @@ class TestWorkspaceDefaults:
         root = Workspace().write(tmp_path, faker)
 
         #: When
-        result = run_cli('--no-builtin-skills-schema', 'inspect', str(root), '--format', 'json')
+        result = run_cli('--no-agent-skills-spec', 'inspect', str(root), '--format', 'json')
 
         #: Then
         assert result.returncode == 0, result.stderr
@@ -1931,7 +1931,7 @@ class TestWorkspaceDefaults:
         root = Workspace().write(tmp_path, faker)
 
         #: When
-        result = run_cli('--no-builtin-skills-schema', 'inspect', str(root))
+        result = run_cli('--no-agent-skills-spec', 'inspect', str(root))
 
         #: Then
         assert result.returncode == 0, result.stderr
@@ -2037,30 +2037,6 @@ class TestWorkspaceDefaults:
         assert result.returncode == 1, result.stderr
         assert 'LC004' in result.stdout, 'opting out does not hide an unusable repository spec'
         assert 'LC402' not in result.stdout, 'the failed layer suppresses the opted-out floor budget too'
-
-    def test_check_rejects_both_skills_opt_out_flags_as_a_usage_error(self) -> None:
-        #: Given
-        arguments = ('--no-agent-skills-spec', '--no-builtin-skills-schema', 'check')
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 2, result.stderr
-        assert 'give only one of --no-agent-skills-spec and --no-builtin-skills-schema' in usage_error_message(
-            result.stderr
-        )
-
-    def test_check_accepts_the_hidden_skills_opt_out_alias(self, tmp_path: Path, faker: Faker) -> None:
-        #: Given
-        root = Workspace(skills=[Skill('review', frontmatter=RawFrontmatter('name: review\n'))]).write(tmp_path, faker)
-
-        #: When
-        result = run_cli('--no-builtin-skills-schema', 'check', '--root', str(root))
-
-        #: Then
-        assert result.returncode == 0, result.stdout
-        assert 'missing required field' not in result.stdout
 
     def test_check_reports_malformed_allowed_tools_on_a_skill(self, tmp_path: Path, faker: Faker) -> None:
         #: Given
