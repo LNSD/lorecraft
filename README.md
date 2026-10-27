@@ -100,7 +100,7 @@ lorecraft rule     # every rule, in code order; `lorecraft rule LC306` explains 
 ```
 
 `lorecraft check` exits 0 when it reports no error, 1 when it reports one, and 2 when it could not run, so it
-can gate a CI job as it is. Both commands take `--format json` for a script to read.
+can gate a CI job as it is. `check` and `inspect` take `--format json` for a script to read.
 
 Then let your agent use them, through the [skills](#skills): `/code-rules` loads the rules that apply before it writes code, and
 `/code-rules-check` checks its changes against them. This repository's own [`docs/code/`](https://github.com/lnsd/lorecraft/tree/main/docs/code) is a
