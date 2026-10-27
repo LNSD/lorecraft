@@ -1,4 +1,4 @@
-"""Building a rule selection from the typed values of `--select` and `--ignore`, against a registry of sample rules."""
+"""Building a rule selection from the typed values of `--select`, against a registry of sample rules."""
 
 from typing import Final
 
@@ -13,14 +13,12 @@ from lorecraft.rules.tests.sample_rules.valid.outline.empty_line import EmptyLin
 
 from ..rule_arguments import (
     AliasSelector,
-    AllSelector,
     CodeSelector,
     SelectorValue,
 )
 from ..rule_selection import (
     AliasCodeSelected,
     ParsedRuleSelection,
-    SelectionOption,
     build_rule_selection,
     print_selection_warnings,
 )
@@ -29,7 +27,7 @@ SMP001: Final[RuleCode] = RuleCode(SAMPLE, 1)
 SMP002: Final[RuleCode] = RuleCode(SAMPLE, 2)
 
 EVERY_RULE: Final[RuleSelection] = RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
-"""The selection of a run given neither `--select` nor `--ignore`: every rule is kept."""
+"""The selection of a run given no `--select` option: every rule is kept."""
 
 
 @pytest.fixture(scope='module')
@@ -40,12 +38,12 @@ def registry() -> Registry:
 
 @pytest.mark.unit
 class TestBuildRuleSelection:
-    def test_build_rule_selection_without_either_option_selects_every_rule(self, registry: Registry) -> None:
+    def test_build_rule_selection_without_select_selects_every_rule(self, registry: Registry) -> None:
         #: Given
         select = None
 
         #: When
-        parsed = build_rule_selection(registry, select=select, ignore=None)
+        parsed = build_rule_selection(registry, select=select)
 
         #: Then
         assert parsed == ParsedRuleSelection(EVERY_RULE, ()), 'no option keeps every rule, and warns of nothing'
@@ -55,7 +53,7 @@ class TestBuildRuleSelection:
         select = [SelectorValue((CodeSelector('SMP002'),))]
 
         #: When
-        parsed = build_rule_selection(registry, select=select, ignore=None)
+        parsed = build_rule_selection(registry, select=select)
 
         #: Then
         assert parsed.selection == RuleSelection(select=frozenset({SMP002}), ignore=frozenset()), (
@@ -69,34 +67,10 @@ class TestBuildRuleSelection:
         ]
 
         #: When
-        parsed = build_rule_selection(registry, select=select, ignore=None)
+        parsed = build_rule_selection(registry, select=select)
 
         #: Then
         assert parsed.selection.select == frozenset({SMP001, SMP002}), 'the selectors of every value add up'
-
-    def test_build_rule_selection_with_only_ignore_selects_every_rule_but_the_ignored(self, registry: Registry) -> None:
-        #: Given
-        ignore = [SelectorValue((CodeSelector('SMP001'),))]
-
-        #: When
-        parsed = build_rule_selection(registry, select=None, ignore=ignore)
-
-        #: Then
-        assert parsed.selection == RuleSelection(select=frozenset({AllRules()}), ignore=frozenset({SMP001})), (
-            'an ignore alone leaves every rule selected except the exact code'
-        )
-
-    def test_build_rule_selection_with_all_selected_and_ignored_converts_all_in_both(self, registry: Registry) -> None:
-        #: Given
-        values = [SelectorValue((AllSelector(),))]
-
-        #: When
-        parsed = build_rule_selection(registry, select=values, ignore=values)
-
-        #: Then
-        assert parsed == ParsedRuleSelection(
-            RuleSelection(select=frozenset({AllRules()}), ignore=frozenset({AllRules()})), ()
-        ), 'ALL is the selector for every rule, in either option'
 
     def test_build_rule_selection_with_an_alias_code_selects_its_rule_and_records_the_alias(
         self, registry: Registry
@@ -105,25 +79,13 @@ class TestBuildRuleSelection:
         select = [SelectorValue((AliasSelector('MD009', CodeSelector('SMP002')),))]
 
         #: When
-        parsed = build_rule_selection(registry, select=select, ignore=None)
+        parsed = build_rule_selection(registry, select=select)
 
         #: Then
         assert parsed == ParsedRuleSelection(
             RuleSelection(select=frozenset({SMP002}), ignore=frozenset()),
-            (AliasCodeSelected(SelectionOption.SELECT, 'MD009', SMP002),),
+            (AliasCodeSelected('MD009', SMP002),),
         ), 'an alias code converts to its rule, and the selection records it to be warned of'
-
-    def test_build_rule_selection_with_an_alias_code_ignored_records_it_under_ignore(self, registry: Registry) -> None:
-        #: Given
-        ignore = [SelectorValue((AliasSelector('MD009', CodeSelector('SMP002')),))]
-
-        #: When
-        parsed = build_rule_selection(registry, select=None, ignore=ignore)
-
-        #: Then
-        assert parsed.aliases == (AliasCodeSelected(SelectionOption.IGNORE, 'MD009', SMP002),), (
-            'the alias code is recorded under the option it was given to'
-        )
 
 
 @pytest.mark.unit
@@ -134,7 +96,7 @@ class TestPrintSelectionWarnings:
         #: Given
         parsed = ParsedRuleSelection(
             RuleSelection(select=frozenset({SMP001, SMP002}), ignore=frozenset()),
-            (AliasCodeSelected(SelectionOption.SELECT, 'MD009', SMP002),),
+            (AliasCodeSelected('MD009', SMP002),),
         )
 
         #: When

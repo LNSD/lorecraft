@@ -726,7 +726,7 @@ class TestCheckCommand:
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', '--root', str(mixed_root), '--select', 'LINK,LC102', '--ignore', 'LC503')
+        arguments = ('check', '--root', str(mixed_root), '--select', 'LINK,LC102')
 
         #: When
         result = run_cli(*arguments)

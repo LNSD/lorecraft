@@ -1,7 +1,7 @@
 """The flow behind `lorecraft check`: run every enabled rule over the whole workspace, and report what the rules found.
 
-This is the composition root of the rules engine. `--select` and `--ignore` arrive parsed and confirmed against the rule
-index; it loads the package's rules and builds the selection from them, establishes the root, takes one snapshot,
+This is the composition root of the rules engine. `--select` arrives parsed and confirmed against the rule index; it
+loads the package's rules and builds the selection from them, establishes the root, takes one snapshot,
 opens the database over it, stops when `docs/` or `docs/__meta__/` could not be listed, selects every subject of the
 workspace, builds the rule table from the rules and the selection, and hands the database, the subjects and the
 table to the runner, beside the reports for retained refusals and units that failed to load; what comes back is
@@ -56,7 +56,6 @@ def run_check(
     output_format: DiagnosticFormat,
     color: ColorChoice,
     select: list[SelectorValue] | None,
-    ignore: list[SelectorValue] | None,
     builtin_layers: tuple[BuiltinSpecLayer, ...],
 ) -> ExitStatus | None:
     """Run the rules over the workspace and write the report; the body of `lorecraft check`.
@@ -66,7 +65,6 @@ def run_check(
         output_format: How the diagnostics are written.
         color: When to emphasise the text format with colour.
         select: The `--select` values, already parsed and confirmed against the rule index.
-        ignore: The `--ignore` values, already parsed and confirmed against the rule index.
         builtin_layers: The builtin specification layers enabled for this run.
 
     Returns:
@@ -80,7 +78,7 @@ def run_check(
     """
     try:
         registry = Registry.load(rules)
-        parsed = build_rule_selection(registry, select=select, ignore=ignore)
+        parsed = build_rule_selection(registry, select=select)
         print_selection_warnings(parsed, selected_rules_left_off(registry, parsed.selection))
         # Root discovery follows symlinks and the snapshot, under `docs/`, does not, so a linked `docs/__meta__/`
         # passes the first and is empty in the second. `from_snapshot` refuses it, before a run over no documents can

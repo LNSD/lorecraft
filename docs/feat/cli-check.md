@@ -50,9 +50,8 @@ Checks docs/specs, skills/resources and escaping symlinks. `LC501`–`LC503` che
 One snapshot, specs first. A failed structure file yields a diagnostic. Failed layers suppress spec gates; `Always`, schema and link gates still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
 ### Selecting Rules
 
-`--select`/`--ignore` accept case-sensitive `ALL`, full codes or aliases, comma-separated or repeated. Without
-`--select`, all rules run. Prefix selectors are unknown and exit `2`; `--ignore` wins ties, and selected `allow`
-rules warn.
+`--select` is the only filter. It accepts case-sensitive `ALL`, full codes or aliases, comma-separated or repeated;
+omitting it checks all rules. Prefix selectors are unknown and exit `2`; selected `allow` rules warn.
 
 Conflicting-level errors name `-A`, `-W`, `-D`; invalid values exit `2` before root discovery. They do not apply levels.
 
@@ -65,7 +64,6 @@ Conflicting-level errors name `-A`, `-W`, `-D`; invalid values exit `2` before r
 | `--format <text\|short\|json>` | `text` | — | The output format, as [Output](#output) describes |
 | `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | `text` only. `auto`: nonempty `FORCE_COLOR` enables; else nonempty `NO_COLOR` disables; otherwise stdout's TTY state applies. Empty is unset; any nonempty value, even `0`, is set. Errors red, warnings yellow, messages bold, gutters blue. |
 | `--select <selectors>` | `ALL` | — | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
-| `--ignore <selectors>` | none | — | Skip these rules |
 | `-A`, `--allow <code>` | none | — | Allow a code, alias or `ALL`; repeatable |
 | `-W`, `--warn <code>` | none | — | Warn on a code, alias or `ALL`; repeatable |
 | `-D`, `--deny <code>` | none | — | Deny a code, alias, `ALL` or `warnings`; repeatable |
@@ -82,10 +80,6 @@ lorecraft check --root ../other-repo --format json
 lorecraft check --format short
 
 lorecraft check --select LC206,LC403
-lorecraft check --ignore LC503
-
-lorecraft check --select LC306 --ignore LC301
-
 ```
 
 `--no-builtin-skills-schema` is a compatibility alias. `LC204` compares `name` with the skill directory; it never
