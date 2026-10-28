@@ -1,0 +1,4 @@
+{
+  "description": "Python-specific structure layer over code.",
+  "frontmatter": {"type": "object"}
+}

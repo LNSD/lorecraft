@@ -1,0 +1,17 @@
+<workspace>
+├── corpora (1)
+│   └── code (docs/code)
+│       ├── specs (4)
+│       │   ├── code: code.spec.json [base: none]
+│       │   ├── code-python: code-python.spec.json [base: code]
+│       │   ├── code-fn-names: code-fn-names.spec.json [base: code]
+│       │   └── code-python-typing: code-python-typing.spec.json [base: code-python]
+│       └── documents (6)
+│           ├── guide.md [governed_by: code] [base_chain: guide]
+│           ├── guide-api.md [governed_by: code] [base_chain: guide, guide-api]
+│           ├── guide-api-names.md [governed_by: code] [base_chain: guide, guide-api, guide-api-names]
+│           ├── guide-fn-names.md [governed_by: code] [base_chain: guide, guide-fn-names]
+│           ├── overview.md [governed_by: code] [base_chain: overview]
+│           └── python-typing.md [governed_by: code, code-python, code-python-typing] [base_chain: python-typing]
+├── agent skills directories (0)
+└── skills (0)

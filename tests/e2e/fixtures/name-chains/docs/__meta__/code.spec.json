@@ -1,0 +1,4 @@
+{
+  "description": "Base structure layer for code documents.",
+  "frontmatter": {"type": "object"}
+}

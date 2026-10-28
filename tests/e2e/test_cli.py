@@ -43,6 +43,7 @@ _VARYING_FIELDS: Final[frozenset[str]] = frozenset({'Commit', 'Python', 'Platfor
 # link, holding a skill, a link to it and a link to a skill kept outside it.
 # Resolved, because the CLI prints the resolved root and the tests swap exactly that string for a placeholder.
 WORKSPACE_FIXTURE: Final[Path] = (Path(__file__).parent / 'fixtures' / 'workspace').resolve()
+NAME_CHAINS_FIXTURE: Final[Path] = (Path(__file__).parent / 'fixtures' / 'name-chains').resolve()
 _ROOT_PLACEHOLDER: Final[str] = '<workspace>'
 
 
@@ -383,6 +384,101 @@ class TestInspectSnapshots:
         assert result.stdout.replace(str(WORKSPACE_FIXTURE), _ROOT_PLACEHOLDER) == expected, (
             'the JSON document matches the reviewed snapshot'
         )
+
+    def test_inspect_with_name_chains_prints_their_hierarchies(self, snapshot: SnapshotAssertion) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('inspect', str(NAME_CHAINS_FIXTURE))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.replace(str(NAME_CHAINS_FIXTURE), _ROOT_PLACEHOLDER) == expected, (
+            'the text tree shows spec and document chains, including skipped prefixes'
+        )
+
+    def test_inspect_json_with_name_chains_returns_both_hierarchies(self) -> None:
+        #: Given
+        expected = {
+            'root': _ROOT_PLACEHOLDER,
+            'corpora': [
+                {
+                    'name': 'code',
+                    'directory': 'docs/code',
+                    'specs': [
+                        {'name': 'code', 'files': ['docs/__meta__/code.spec.json'], 'base': None},
+                        {
+                            'name': 'code-python',
+                            'files': ['docs/__meta__/code-python.spec.json'],
+                            'base': 'code',
+                        },
+                        {
+                            'name': 'code-fn-names',
+                            'files': ['docs/__meta__/code-fn-names.spec.json'],
+                            'base': 'code',
+                        },
+                        {
+                            'name': 'code-python-typing',
+                            'files': ['docs/__meta__/code-python-typing.spec.json'],
+                            'base': 'code-python',
+                        },
+                    ],
+                    'documents': [
+                        {
+                            'path': 'docs/code/guide.md',
+                            'governed_by': ['docs/__meta__/code.spec.json'],
+                            'base_chain': ['docs/code/guide.md'],
+                        },
+                        {
+                            'path': 'docs/code/guide-api.md',
+                            'governed_by': ['docs/__meta__/code.spec.json'],
+                            'base_chain': ['docs/code/guide.md', 'docs/code/guide-api.md'],
+                        },
+                        {
+                            'path': 'docs/code/guide-api-names.md',
+                            'governed_by': ['docs/__meta__/code.spec.json'],
+                            'base_chain': [
+                                'docs/code/guide.md',
+                                'docs/code/guide-api.md',
+                                'docs/code/guide-api-names.md',
+                            ],
+                        },
+                        {
+                            'path': 'docs/code/guide-fn-names.md',
+                            'governed_by': ['docs/__meta__/code.spec.json'],
+                            'base_chain': ['docs/code/guide.md', 'docs/code/guide-fn-names.md'],
+                        },
+                        {
+                            'path': 'docs/code/overview.md',
+                            'governed_by': ['docs/__meta__/code.spec.json'],
+                            'base_chain': ['docs/code/overview.md'],
+                        },
+                        {
+                            'path': 'docs/code/python-typing.md',
+                            'governed_by': [
+                                'docs/__meta__/code.spec.json',
+                                'docs/__meta__/code-python.spec.json',
+                                'docs/__meta__/code-python-typing.spec.json',
+                            ],
+                            'base_chain': ['docs/code/python-typing.md'],
+                        },
+                    ],
+                }
+            ],
+            'agent_skills_dirs': [],
+            'skills': [],
+        }
+        arguments = ('inspect', str(NAME_CHAINS_FIXTURE), '--format', 'json')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        actual = json.loads(result.stdout.replace(str(NAME_CHAINS_FIXTURE), _ROOT_PLACEHOLDER))
+        assert actual == expected, 'the whole JSON document keeps the spec and document chains separate'
 
 
 @pytest.fixture(scope='function')
