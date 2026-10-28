@@ -2,7 +2,7 @@
 name: "prd-024-shared-name-hierarchy"
 description: "One name hierarchy for specs and corpus documents, so every extension knows its base chain, skills load a matched document's full chain from broadest to narrowest, and workspace inspection shows both a document's governing specs and its document base chain"
 type: "prd"
-status: "draft"
+status: "approved"
 ---
 
 # Shared Name Hierarchy
@@ -45,10 +45,8 @@ layers create a catch-22 in which no governed document can satisfy all layers at
 - **Warning when an extension sets a higher word cap or token budget than its base.** Because every layer is checked on
   its own, the tighter limit of the base still governs; reporting redundant higher limits on the extension is not part
   of this feature.
-- **Checking the prose of specs against a spec of their own.** Validating the prose format of files in the
-  spec directory is separate follow-up work.
-- **Enforcing reference direction between extensions and bases or defining cross-corpus dependency rules.** Checking
-  that an extension links to its base and that a base never links to its extensions is deferred to follow-up work.
+- **Checking the prose of specs or the direction of references between extensions and bases.** The meta specs and
+  the link rules own those checks; this feature neither adds nor changes them.
 - **Merging layers or allowing an extension to override its base.** Conjunction is already the settled rule across
   specs, code rules and feature documents; no layer replaces or relaxes a broader one.
 

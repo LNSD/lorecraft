@@ -2,7 +2,7 @@
 name: "adr-013-namespace-extension"
 description: "A namespace extension layers onto its base by conjunction for every kind of document, code rules and feat docs as well as specs: a document's base chain is separate from the specs that govern it, and loading a document loads its whole chain, base first. Load when writing or reviewing a code rule or feat doc that extends another, changing which documents /code-rules or /feat-discovery load, or changing what lorecraft inspect shows about a name's chain"
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # Namespace Extension by Conjunction
@@ -55,7 +55,7 @@ about every function.
   file reads on its own and loading a document loads one file. Not chosen: every extension restates what it keeps of
   its base, and the copies drift; and it turns any contradiction into a relaxation, which no document in the
   repository needs. adr-016 rejects it for specs for the same reasons.
-- **Loading the most specific match only**, as `/code-rules` does today. It costs the fewest tokens, but an agent
+- **Loading the most specific match only**, as `/code-rules` did before this record. It costs the fewest tokens, but an agent
   following one document misses the rules its base still applies. Today a chain is at most two documents in
   `docs/code/` and three in `docs/feat/`.
 - **A missing base as an error.** It would make every chain explicit, at the cost of a base document for each prefix
