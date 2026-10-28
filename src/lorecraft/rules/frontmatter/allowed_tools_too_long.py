@@ -14,7 +14,8 @@ from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
-from .__ruleset__ import ALLOWED_TOOLS_NOTE, GROUP_ID, AllowedToolsField, allowed_tools_field
+from .__ruleset__ import GROUP_ID
+from .queries import ALLOWED_TOOLS_NOTE, AllowedToolsField, allowed_tools_field
 
 _CHARACTER_LIMIT: Final[NonZeroUnsignedInt] = NonZeroUnsignedInt(500)
 """Lorecraft's recommended length, matching the compatibility field's maximum."""
