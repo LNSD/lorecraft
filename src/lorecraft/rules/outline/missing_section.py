@@ -22,7 +22,8 @@ from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
-from .__ruleset__ import GROUP_ID, example_note, outline_divergences, spec_note
+from .__ruleset__ import GROUP_ID
+from .queries import example_note, outline_divergences, spec_note
 
 
 @rule

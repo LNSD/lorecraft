@@ -40,7 +40,7 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
-from lorecraft.rules.outline.__ruleset__ import outline_divergences
+from lorecraft.rules.outline.queries import outline_divergences
 from lorecraft.vfs import Snapshot, VirtualFileSystem
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
