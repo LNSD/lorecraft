@@ -44,18 +44,17 @@ path says which files govern it. Every command that reads a repository loads the
 
 A file in `docs/__meta__/` is a spec file when a file type's pattern claims its name: `<name>.md` or
 `<name>.spec.json`. The spec name opens with a corpus name:
-lowercase letters, digits and underscores starting with a letter or an underscore. A corpus name holds no
-hyphen, so the corpus ends at the first hyphen: a corpus of several words is spelled with underscores, so `docs/cli_specs/` is governed by
+lowercase letters, digits and underscores starting with a letter or an underscore. The corpus ends at the first hyphen: a corpus of several words uses underscores, so `docs/cli_specs/` is governed by
 `cli_specs.md` and narrowed by `cli_specs-<namespace>.md`. What follows is the namespace: lowercase letters and
-digits in hyphen-separated words, starting with a letter. A spec name holds no dot. A file whose name
-does not parse, such as `README.md`, `1abc.md`, `feat-2col.md` or a `<name>.<token>.json` that no pattern claims,
+digits in hyphen-separated words, starting with a letter or a digit, so `feat-2col` parses. A spec name holds no dot. A file whose name
+does not parse, such as `README.md`, `1abc.md`, `feat--x.md` or a `<name>.<token>.json` that no pattern claims,
 is left out, and so is a namespace spec whose corpus has no file at its own name, or no directory under
-`docs/`. A numeric placeholder spec such as `adr-0000` alone establishes its corpus, given `docs/adr/`. The reserved corpora `meta` and `skills` load without a directory (`LC101` reports one);
-the `meta` specs govern the spec files. A `<name>.header.json` is claimed by no pattern, so it is left out and not read.
+`docs/`. A numeric placeholder spec such as `adr-0000` alone establishes its corpus, given `docs/adr/`: the corpus is `adr`, `0000` the numeric prefix, and zeros match digits of the same width, so it governs `0001-subject.md`, not `001-subject.md`. The reserved corpora `meta` and `skills` load without a directory (`LC101` reports one);
+the `meta` specs govern the spec files. A `<name>.header.json` is left out.
 
 ### Loading
 
-At a spec name, `<name>.spec.json` is the structure file. Other readable files no file type claims are ignored without a diagnostic.
+At a spec name, `<name>.spec.json` is the structure file. Other readable files are ignored.
 
 Every selected structure file is read and validated before any document, from one snapshot. Only selected files
 are read as specs. Invalid JSON or unusable rules are load failures. `check` reports
