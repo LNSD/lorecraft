@@ -50,7 +50,7 @@ hyphen, so the corpus ends at the first hyphen: a corpus of several words is spe
 digits in hyphen-separated words, starting with a letter. A spec name holds no dot. A file whose name
 does not parse, such as `README.md`, `1abc.md`, `feat-2col.md` or a `<name>.<token>.json` that no pattern claims,
 is left out, and so is a namespace spec whose corpus has no file at its own name, or no directory under
-`docs/`. The reserved corpora `meta` and `skills` load without a directory (`LC101` reports one);
+`docs/`. A numeric placeholder spec such as `adr-0000` alone establishes its corpus, given `docs/adr/`. The reserved corpora `meta` and `skills` load without a directory (`LC101` reports one);
 the `meta` specs govern the spec files. A `<name>.header.json` is claimed by no pattern, so it is left out and not read.
 
 ### Loading

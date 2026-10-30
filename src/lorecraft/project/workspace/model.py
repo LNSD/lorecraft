@@ -288,8 +288,15 @@ class Governance:
         return tuple(failed)
 
     def corpus_structure(self) -> StructureSpec | None:
-        """The corpus spec's structure specification, or None when it states none or its layer failed to load."""
-        structure = self.corpus_spec.structure
+        """The structure specification the layers narrow, or None when it states none or its layer failed to load.
+
+        It is the corpus spec's. A corpus with no spec file of its own, established by a numeric placeholder spec such
+        as `adr-0000`, takes the broadest matching placeholder spec's instead.
+        """
+        spec: Spec | None = self.corpus_spec
+        if not self.corpus_spec.files:
+            spec = next((s for s in self.namespace_specs if s.name.namespace.opens_with_placeholder), None)
+        structure = spec.structure if spec is not None else None
         match structure:
             case StructureSpec():
                 return structure

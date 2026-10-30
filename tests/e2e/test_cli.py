@@ -393,6 +393,26 @@ class TestInspectSnapshots:
             'the four-digit documents are governed by the zero-run spec and the three-digit one is not'
         )
 
+    def test_inspect_with_only_a_zero_run_spec_establishes_the_corpus_it_names(
+        self, tmp_path: Path, faker: Faker, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        workspace = Workspace(
+            specs=[Spec('adr-0000')],
+            documents=[Document('adr', '0001-subject'), Document('adr', '001-narrow')],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('inspect', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.replace(str(root), _ROOT_PLACEHOLDER) == expected, (
+            'the corpus adr exists and only the four-digit document is governed by the zero-run spec'
+        )
+
     def test_inspect_with_a_zero_run_spec_layers_it_between_the_corpus_and_a_namespace_by_width_and_digits(
         self, tmp_path: Path, faker: Faker, snapshot: SnapshotAssertion
     ) -> None:
@@ -1455,6 +1475,27 @@ class TestGovernanceCoverage:
         assert result.returncode == 0, result.stdout
         assert 'checked 2 subject(s): 0 error(s), 0 warning(s)' in result.stderr, (
             'the digit-leading documents are checked, and the missing 0002 is not reported'
+        )
+
+    def test_check_with_only_a_zero_run_spec_checks_the_documents_of_its_width(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('adr-0000', structure={'frontmatter': {'type': 'object', 'required': ['owner']}})],
+            documents=[Document('adr', '0001-subject'), Document('adr', '001-narrow')],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC206' in result.stdout, 'the zero-run spec rule is checked without a corpus spec'
+        assert '0001-subject' in result.stdout, 'the four-digit document is the one reported'
+        assert '--> docs/adr/001-narrow.md' not in result.stdout, (
+            'the three-digit document is not checked against the rule'
         )
 
     def test_check_applies_a_numbered_namespace_spec_to_matching_documents_only(

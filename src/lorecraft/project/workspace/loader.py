@@ -216,8 +216,9 @@ def load_workspace(
     overlapping_directories: set[ReservedCorpusDirectory] = set()
     for corpus_name in sorted(groups, key=str):
         files = groups[corpus_name]
-        if files.spec.is_empty():
-            # A namespace spec narrows a corpus spec; without one there is nothing to narrow.
+        if files.spec.is_empty() and not any(namespace.opens_with_placeholder for namespace in files.namespaces):
+            # A namespace spec narrows a corpus spec; without one there is nothing to narrow. A numeric placeholder
+            # spec such as `adr-0000` is the exception: it names the corpus's documents itself, so it establishes it.
             continue
         has_directory = PathComponent.parse(str(corpus_name)) in corpus_directories
         if str(corpus_name) in {META_CORPUS_NAME, SKILLS_CORPUS_NAME}:

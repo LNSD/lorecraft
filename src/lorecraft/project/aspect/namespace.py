@@ -118,6 +118,11 @@ class AspectNamespace:
         # cannot disagree with the value.
         object.__setattr__(self, 'segments', tuple(_parse_segment(text) for text in self.value.split('-')))
 
+    @property
+    def opens_with_placeholder(self) -> bool:
+        """True when the namespace's first segment is a numeric placeholder, as the `0000` of `adr-0000`."""
+        return isinstance(self.segments[0], ZeroRun)
+
     def is_prefix_of(self, filename: AspectFilename | str) -> bool:
         """Return whether this namespace is the whole name or its hyphen-delimited prefix.
 
