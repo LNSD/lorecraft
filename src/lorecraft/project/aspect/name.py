@@ -6,6 +6,8 @@ from typing import Self
 
 from lorecraft.core.error import Error
 
+from .timestamp import is_valid_timestamp
+
 
 class EmptyAspectNameError(Error):
     """An aspect name is empty."""
@@ -87,15 +89,27 @@ def _reject_invalid_aspect_name(name: str) -> None:
         raise InvalidAspectNameCharacterError(name, 0)
 
     previous_was_separator = False
+    utc_positions = _utc_positions(name)
     for position, character in enumerate(name[1:], start=1):
         if character in '-_':
             if previous_was_separator:
                 raise InvalidAspectNameCharacterError(name, position)
             previous_was_separator = True
-        elif character in ascii_lowercase or character in digits:
+        elif character in ascii_lowercase or character in digits or position in utc_positions:
             previous_was_separator = False
         else:
             raise InvalidAspectNameCharacterError(name, position)
 
     if previous_was_separator:
         raise InvalidAspectNameCharacterError(name, len(name) - 1)
+
+
+def _utc_positions(name: str) -> set[int]:
+    """Return positions of the UTC marker in any valid full timestamp segment."""
+    positions: set[int] = set()
+    start = 0
+    for segment in name.split('-'):
+        if is_valid_timestamp(segment, 17):
+            positions.update(range(start + 14, start + 17))
+        start += len(segment) + 1
+    return positions

@@ -7,6 +7,7 @@ from typing import Self
 from lorecraft.core.error import Error
 
 from .filename import AspectFilename
+from .timestamp import is_valid_timestamp
 
 
 class EmptyAspectNamespaceError(Error):
@@ -66,10 +67,34 @@ class ZeroRun:
         return len(name_segment) == self.width and name_segment.isascii() and name_segment.isdigit()
 
 
-type NamespaceSegment = LiteralSegment | ZeroRun
+@dataclass(frozen=True, slots=True)
+class TimestampToken:
+    """A fixed-width timestamp placeholder in a specification namespace."""
+
+    token: str
+    width: int
+
+    def matches(self, name_segment: str) -> bool:
+        """Return whether a name segment is a valid timestamp of this precision."""
+        return is_valid_timestamp(name_segment, self.width)
+
+
+type NamespaceSegment = LiteralSegment | ZeroRun | TimestampToken
+
+_TIMESTAMP_WIDTHS: dict[str, int] = {
+    'YYYY': 4,
+    'YYYYMM': 6,
+    'YYYYMMDD': 8,
+    'YYYYMMDDHH': 10,
+    'YYYYMMDDHHMM': 12,
+    'YYYYMMDDHHMMSS': 14,
+    'YYYYMMDDHHMMSSZZZ': 17,
+}
 
 
 def _parse_segment(text: str) -> NamespaceSegment:
+    if text in _TIMESTAMP_WIDTHS:
+        return TimestampToken(text, _TIMESTAMP_WIDTHS[text])
     if set(text) == {'0'}:
         return ZeroRun(len(text))
     return LiteralSegment(text)
@@ -79,15 +104,15 @@ def _parse_segment(text: str) -> NamespaceSegment:
 class AspectNamespace:
     """A validated, possibly nested kebab-case namespace.
 
-    A namespace matches `[a-z0-9][a-z0-9]*(?:-[a-z0-9]+)*`. It may contain any number of
-    lowercase ASCII words, separated by single hyphens. A namespace matches a document name
-    when the name is equal to it or begins with it followed by a hyphen. A segment of zeroes only,
-    such as the `000` of `adr-000`, is a numeric placeholder: it matches a segment of digits only
-    with the same width, so `adr-000` matches `adr-034-topic` but not `adr-34` or `adr-0340`.
+    A namespace contains lowercase ASCII and numeric segments, or one of the timestamp tokens
+    `YYYY`, `YYYYMM`, `YYYYMMDD`, `YYYYMMDDHH`, `YYYYMMDDHHMM`, `YYYYMMDDHHMMSS`, and
+    `YYYYMMDDHHMMSSZZZ`, separated by single hyphens. Timestamp tokens match only a valid segment
+    of their exact width; the final token requires literal `UTC`. A segment of zeroes remains a
+    numeric placeholder matching decimal digits of the same width.
 
     Attributes:
         value: The validated namespace, exactly as supplied.
-        segments: The hyphen-separated segments, each a literal or a zero run, read once from the value.
+        segments: The hyphen-separated literal, zero-run or timestamp-token segments, read once from the value.
     """
 
     value: str
@@ -146,19 +171,12 @@ class AspectNamespace:
 def _reject_invalid_namespace(namespace: str) -> None:
     if not namespace:
         raise EmptyAspectNamespaceError()
-    if namespace[0] not in ascii_lowercase and namespace[0] not in digits:
-        raise InvalidAspectNamespaceCharacterError(namespace, 0)
-
-    previous_was_hyphen = False
-    for position, character in enumerate(namespace[1:], start=1):
-        if character == '-':
-            if previous_was_hyphen:
-                raise InvalidAspectNamespaceCharacterError(namespace, position)
-            previous_was_hyphen = True
-        elif character in ascii_lowercase or character in digits:
-            previous_was_hyphen = False
-        else:
-            raise InvalidAspectNamespaceCharacterError(namespace, position)
-
-    if previous_was_hyphen:
-        raise InvalidAspectNamespaceCharacterError(namespace, len(namespace) - 1)
+    position = 0
+    for part in namespace.split('-'):
+        if not part:
+            raise InvalidAspectNamespaceCharacterError(namespace, min(position, len(namespace) - 1))
+        if part not in _TIMESTAMP_WIDTHS:
+            for offset, character in enumerate(part):
+                if character not in ascii_lowercase and character not in digits:
+                    raise InvalidAspectNamespaceCharacterError(namespace, position + offset)
+        position += len(part) + 1

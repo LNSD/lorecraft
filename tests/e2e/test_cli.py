@@ -459,6 +459,48 @@ class TestInspectSnapshots:
             'the literal spec has the corpus as its base, and the 0000 document does not chain to 0001'
         )
 
+    def test_inspect_with_timestamp_specs_governs_matching_document_precisions_and_rejects_invalid_values(
+        self, tmp_path: Path, faker: Faker, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        workspace = Workspace(
+            specs=[
+                Spec('adr'),
+                Spec('adr-YYYY'),
+                Spec('adr-YYYYMM'),
+                Spec('adr-YYYYMMDD'),
+                Spec('adr-YYYYMMDDHH'),
+                Spec('adr-YYYYMMDDHHMM'),
+                Spec('adr-YYYYMMDDHHMMSS'),
+                Spec('adr-YYYYMMDDHHMMSSZZZ'),
+            ],
+            documents=[
+                Document('adr', '2024-valid'),
+                Document('adr', '202402-valid'),
+                Document('adr', '20240229-valid'),
+                Document('adr', '2024022923-valid'),
+                Document('adr', '202402292359-valid'),
+                Document('adr', '20240229235959-valid'),
+                Document('adr', '20240229235959UTC-valid'),
+                Document('adr', '20230229-invalid'),
+                Document('adr', '2024022924-invalid'),
+                Document('adr', '20240229235960-invalid'),
+                Document('adr', '202402292359590-invalid'),
+            ],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('inspect', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.replace(str(root), _ROOT_PLACEHOLDER) == expected, (
+            'the tree shows every timestamp precision governing its valid document and leaves malformed values '
+            'unmatched'
+        )
+
     def test_inspect_with_json_over_the_workspace_fixture_prints_the_model_document(
         self, snapshot: SnapshotAssertion
     ) -> None:
@@ -1460,6 +1502,47 @@ class TestCheckCommand:
 
 @pytest.mark.e2e
 class TestGovernanceCoverage:
+    def test_check_with_timestamp_specs_governs_valid_documents_and_leaves_invalid_values_unmatched(
+        self, tmp_path: Path, faker: Faker, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        workspace = Workspace(
+            specs=[
+                Spec('adr'),
+                Spec('adr-YYYY'),
+                Spec('adr-YYYYMM'),
+                Spec('adr-YYYYMMDD'),
+                Spec('adr-YYYYMMDDHH'),
+                Spec('adr-YYYYMMDDHHMM'),
+                Spec('adr-YYYYMMDDHHMMSS'),
+                Spec('adr-YYYYMMDDHHMMSSZZZ'),
+            ],
+            documents=[
+                Document('adr', '2024-valid'),
+                Document('adr', '202402-valid'),
+                Document('adr', '20240229-valid'),
+                Document('adr', '2024022923-valid'),
+                Document('adr', '202402292359-valid'),
+                Document('adr', '20240229235959-valid'),
+                Document('adr', '20240229235959UTC-valid'),
+                Document('adr', '20230229-invalid'),
+                Document('adr', '2024022924-invalid'),
+                Document('adr', '20240229235960-invalid'),
+                Document('adr', '202402292359590-invalid'),
+            ],
+        )
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 0, result.stdout
+        assert result.stdout == '', 'all timestamp documents are valid under the default specifications'
+        assert result.stderr == expected, 'all eleven listed documents are checked without findings'
+
     def test_check_with_a_gap_in_numbered_documents_reports_no_error(self, tmp_path: Path, faker: Faker) -> None:
         #: Given
         workspace = Workspace(

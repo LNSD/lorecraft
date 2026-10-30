@@ -1,0 +1,26 @@
+<workspace>
+├── corpora (1)
+│   └── adr (docs/adr)
+│       ├── specs (8)
+│       │   ├── adr: adr.spec.json [base: none]
+│       │   ├── adr-YYYY: adr-YYYY.spec.json [base: adr]
+│       │   ├── adr-YYYYMM: adr-YYYYMM.spec.json [base: adr]
+│       │   ├── adr-YYYYMMDD: adr-YYYYMMDD.spec.json [base: adr]
+│       │   ├── adr-YYYYMMDDHH: adr-YYYYMMDDHH.spec.json [base: adr]
+│       │   ├── adr-YYYYMMDDHHMM: adr-YYYYMMDDHHMM.spec.json [base: adr]
+│       │   ├── adr-YYYYMMDDHHMMSS: adr-YYYYMMDDHHMMSS.spec.json [base: adr]
+│       │   └── adr-YYYYMMDDHHMMSSZZZ: adr-YYYYMMDDHHMMSSZZZ.spec.json [base: adr]
+│       └── documents (11)
+│           ├── 20230229-invalid.md [governed_by: adr] [base_chain: 20230229-invalid]
+│           ├── 2024-valid.md [governed_by: adr, adr-YYYY] [base_chain: 2024-valid]
+│           ├── 202402-valid.md [governed_by: adr, adr-YYYYMM] [base_chain: 202402-valid]
+│           ├── 20240229-valid.md [governed_by: adr, adr-YYYYMMDD] [base_chain: 20240229-valid]
+│           ├── 2024022923-valid.md [governed_by: adr, adr-YYYYMMDDHH] [base_chain: 2024022923-valid]
+│           ├── 202402292359-valid.md [governed_by: adr, adr-YYYYMMDDHHMM] [base_chain: 202402292359-valid]
+│           ├── 20240229235959-valid.md [governed_by: adr, adr-YYYYMMDDHHMMSS] [base_chain: 20240229235959-valid]
+│           ├── 202402292359590-invalid.md [governed_by: adr] [base_chain: 202402292359590-invalid]
+│           ├── 20240229235959UTC-valid.md [governed_by: adr, adr-YYYYMMDDHHMMSSZZZ] [base_chain: 20240229235959UTC-valid]
+│           ├── 20240229235960-invalid.md [governed_by: adr] [base_chain: 20240229235960-invalid]
+│           └── 2024022924-invalid.md [governed_by: adr] [base_chain: 2024022924-invalid]
+├── agent skills directories (0)
+└── skills (0)

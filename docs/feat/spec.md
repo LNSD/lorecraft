@@ -19,8 +19,9 @@ path says which files govern it. Every command that reads a repository loads the
 1. [Key Concepts](#key-concepts)
 2. [Architecture](#architecture)
 3. [Limitations](#limitations)
-4. [Base and Extension](#base-and-extension)
-5. [References](#references)
+4. [Timestamp Placeholders](#timestamp-placeholders)
+5. [Base and Extension](#base-and-extension)
+6. [References](#references)
 
 ## Key Concepts
 
@@ -77,6 +78,15 @@ ungoverned part runs: the part is reported as [coverage](cli-check.md#output), n
   in the package.
 - A rule stated in prose that no structure file holds is not checked: the prose and the JSON can drift,
   and nothing detects it.
+
+## Timestamp Placeholders
+
+Timestamp tokens are whole, uppercase namespace segments: `YYYY`, `YYYYMM`, `YYYYMMDD`, `YYYYMMDDHH`,
+`YYYYMMDDHHMM`, `YYYYMMDDHHMMSS` and `YYYYMMDDHHMMSSZZZ`. They match valid fixed-width timestamp values
+in document and spec names. The final token requires literal uppercase `UTC` in place of `ZZZ`. Dates must
+be Gregorian, years cannot be `0000`, hours are 00–23, and minutes and seconds are 00–59. A timestamp may
+be followed by a hyphen and more name segments; extra digits, malformed values, offsets and other timezone
+abbreviations do not match.
 
 ## Base and Extension
 
