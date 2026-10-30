@@ -23,6 +23,7 @@ status: "proposed"
 3. **Keep numeric placeholder matching in spec-to-document matching.** Corpus and namespace spec governance use the rule; document-to-document base chains and spec-to-spec hierarchy keep their existing literal hyphen-prefix behavior.
 4. **Retain existing hierarchy resolution.** When several specs match a document, apply them from broad to narrow; resolve a document base from the longest existing literal document-name prefix. A missing intermediate name remains valid and does not make the chain fail.
 5. **Treat sequence order as repository policy.** The placeholder describes digit width only. Lorecraft does not require sequences to start at one, be consecutive, or appear in numeric order.
+6. **Accept digit-leading document and namespace names.** A document name or namespace may begin with a digit, such as `0001-subject`, and a namespace name such as `adr-0000-nspace` is valid, whether or not a placeholder governs it.
 
 ## Alternatives Considered
 
@@ -34,7 +35,8 @@ status: "proposed"
 
 - Ordinary alphabetic and mixed-name chains continue to use the existing literal, hyphen-delimited prefix rule. Longest-existing-prefix resolution, broad-to-narrow application and gaps in a document chain remain unchanged.
 - A zero-only segment in a corpus or namespace spec name gains meaning as a placeholder. A spec that previously intended a literal all-zero segment may now govern additional numbered documents. Its owner should rename that segment if the broader match is unwanted; a matching namespace can also add constraints through conjunction, so newly governed documents may reveal findings they did not previously receive.
-- Numbered files must be recognized as document names by the workspace naming rules for the new governance to take effect. This decision does not change document discovery or validation of numeric ordering.
+- Numbered files must be recognized as document names for the new governance to take effect, so this decision widens document discovery and namespace parsing to digit-leading names. It does not validate numeric ordering.
+- Digit-leading names are accepted with or without a placeholder. A file such as `1abc.md` that discovery silently left out of a corpus is now discovered and checked, and may report findings it never received.
 - Existing numeric document names need no renaming to use the placeholder. Gaps are valid, and no order migration is required.
 
 ## Consequences
@@ -52,6 +54,7 @@ status: "proposed"
 - [ ] `adr-0000-nspace.md` governs `0001-nspace-<subject>.md` alongside the corpus spec
 - [ ] Ordinary literal hyphen-prefix matching and broad-to-narrow spec application remain intact
 - [ ] Numeric placeholder matching does not alter document-to-document base chains or spec-to-spec hierarchy
+- [ ] Digit-leading document names (`0001-subject.md`) are discovered and namespace names (`adr-0000-nspace`) parse
 - [ ] Gaps and document listing order receive no validation
 
 ## References
