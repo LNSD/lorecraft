@@ -393,6 +393,52 @@ class TestInspectSnapshots:
             'the four-digit documents are governed by the zero-run spec and the three-digit one is not'
         )
 
+    def test_inspect_with_a_zero_run_spec_layers_it_between_the_corpus_and_a_namespace_by_width_and_digits(
+        self, tmp_path: Path, faker: Faker, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        workspace = Workspace(
+            specs=[Spec('adr'), Spec('adr-0000'), Spec('adr-0000-nspace')],
+            documents=[
+                Document('adr', '0001-subject'),
+                Document('adr', '0002-nspace'),
+                Document('adr', '00001-wide'),
+                Document('adr', '0a01-letter'),
+            ],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('inspect', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.replace(str(root), _ROOT_PLACEHOLDER) == expected, (
+            'four-digit documents get the three layers broad to narrow, a name ending at the prefix included, '
+            'and the wider and letter-bearing ones get the corpus spec only'
+        )
+
+    def test_inspect_with_a_literal_numbered_spec_chains_it_to_the_corpus_and_not_to_other_numbers(
+        self, tmp_path: Path, faker: Faker, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        workspace = Workspace(
+            specs=[Spec('adr'), Spec('adr-0000'), Spec('adr-0001-x')],
+            documents=[Document('adr', '0001-x'), Document('adr', '0000-x-y')],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('inspect', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.replace(str(root), _ROOT_PLACEHOLDER) == expected, (
+            'the literal spec has the corpus as its base, and the 0000 document does not chain to 0001'
+        )
+
     def test_inspect_with_json_over_the_workspace_fixture_prints_the_model_document(
         self, snapshot: SnapshotAssertion
     ) -> None:
@@ -1410,6 +1456,29 @@ class TestGovernanceCoverage:
         assert 'checked 2 subject(s): 0 error(s), 0 warning(s)' in result.stderr, (
             'the digit-leading documents are checked, and the missing 0002 is not reported'
         )
+
+    def test_check_applies_a_numbered_namespace_spec_to_matching_documents_only(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[
+                Spec('adr'),
+                Spec('adr-0000'),
+                Spec('adr-0000-nspace', structure={'frontmatter': {'type': 'object', 'required': ['owner']}}),
+            ],
+            documents=[Document('adr', '0001-subject'), Document('adr', '0002-nspace')],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC206' in result.stdout, 'the namespace rule is checked on the matching document'
+        assert '0002-nspace' in result.stdout, 'the matching document is the one reported'
+        assert '0001-subject' not in result.stdout, 'the document outside the namespace is not reported'
 
     def test_check_applies_skills_namespace_spec_to_matching_skill_namespaces(
         self, tmp_path: Path, faker: Faker
