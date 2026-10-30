@@ -5,7 +5,13 @@ import pytest
 from lorecraft.core.error import Error
 
 from ..filename import AspectFilename
-from ..namespace import AspectNamespace, EmptyAspectNamespaceError, InvalidAspectNamespaceCharacterError
+from ..namespace import (
+    AspectNamespace,
+    EmptyAspectNamespaceError,
+    InvalidAspectNamespaceCharacterError,
+    LiteralSegment,
+    ZeroRun,
+)
 
 
 @pytest.mark.unit
@@ -139,3 +145,147 @@ class TestAspectNamespace:
 
         #: Then
         assert not is_prefix, 'a filename sharing the letters but not the hyphen is outside the namespace'
+
+    def test_is_prefix_of_with_a_zero_run_and_a_three_digit_number_returns_true(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-000')
+
+        #: When
+        is_prefix = namespace.is_prefix_of('adr-034')
+
+        #: Then
+        assert is_prefix, "'adr-000' governs 'adr-034': the zero run stands for a number of its width"
+
+    def test_is_prefix_of_with_a_zero_run_and_a_number_with_a_subject_returns_true(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-000')
+
+        #: When
+        is_prefix = namespace.is_prefix_of('adr-001-subject')
+
+        #: Then
+        assert is_prefix, "'adr-000' governs 'adr-001-subject': the zero run stands for a number of its width"
+
+    def test_is_prefix_of_with_a_zero_run_and_a_number_and_the_later_segment_returns_true(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-000-nspace')
+
+        #: When
+        is_prefix = namespace.is_prefix_of('adr-042-nspace-subject')
+
+        #: Then
+        assert is_prefix, (
+            "'adr-000-nspace' governs 'adr-042-nspace-subject': the zero run stands for a number of its width"
+        )
+
+    def test_is_prefix_of_with_a_zero_run_and_a_number_with_a_trailing_segment_returns_true(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-000')
+
+        #: When
+        is_prefix = namespace.is_prefix_of('adr-999-a')
+
+        #: Then
+        assert is_prefix, "'adr-000' governs 'adr-999-a': the zero run stands for a number of its width"
+
+    def test_is_prefix_of_with_a_zero_run_and_a_shorter_number_returns_false(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-000')
+
+        #: When
+        is_prefix = namespace.is_prefix_of('adr-34')
+
+        #: Then
+        assert not is_prefix, "'adr-000' does not govern 'adr-34': width, digits or later segments differ"
+
+    def test_is_prefix_of_with_a_zero_run_and_a_longer_number_returns_false(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-000')
+
+        #: When
+        is_prefix = namespace.is_prefix_of('adr-0340')
+
+        #: Then
+        assert not is_prefix, "'adr-000' does not govern 'adr-0340': width, digits or later segments differ"
+
+    def test_is_prefix_of_with_a_zero_run_and_a_number_with_a_letter_returns_false(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-000')
+
+        #: When
+        is_prefix = namespace.is_prefix_of('adr-03a')
+
+        #: Then
+        assert not is_prefix, "'adr-000' does not govern 'adr-03a': width, digits or later segments differ"
+
+    def test_is_prefix_of_with_a_zero_run_and_a_word_instead_of_a_number_returns_false(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-000')
+
+        #: When
+        is_prefix = namespace.is_prefix_of('adr-subject')
+
+        #: Then
+        assert not is_prefix, "'adr-000' does not govern 'adr-subject': width, digits or later segments differ"
+
+    def test_is_prefix_of_with_a_zero_run_and_no_number_segment_returns_false(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-000')
+
+        #: When
+        is_prefix = namespace.is_prefix_of('adr')
+
+        #: Then
+        assert not is_prefix, "'adr-000' does not govern 'adr': width, digits or later segments differ"
+
+    def test_is_prefix_of_with_a_zero_run_and_another_later_segment_returns_false(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-000-nspace')
+
+        #: When
+        is_prefix = namespace.is_prefix_of('adr-042-other-subject')
+
+        #: Then
+        assert not is_prefix, (
+            "'adr-000-nspace' does not govern 'adr-042-other-subject': width, digits or later segments differ"
+        )
+
+    def test_is_prefix_of_with_a_zero_run_and_a_missing_later_segment_returns_false(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-000-nspace')
+
+        #: When
+        is_prefix = namespace.is_prefix_of('adr-042')
+
+        #: Then
+        assert not is_prefix, "'adr-000-nspace' does not govern 'adr-042': width, digits or later segments differ"
+
+    def test_is_prefix_of_with_a_zero_run_and_a_different_literal_number_returns_false(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-001')
+
+        #: When
+        is_prefix = namespace.is_prefix_of('adr-002')
+
+        #: Then
+        assert not is_prefix, "'adr-001' does not govern 'adr-002': width, digits or later segments differ"
+
+    def test_segments_with_a_zero_run_reads_it_as_a_placeholder_of_its_width(self) -> None:
+        #: Given
+        raw = 'adr-000'
+
+        #: When
+        namespace = AspectNamespace.parse(raw)
+
+        #: Then
+        assert namespace.segments == (LiteralSegment('adr'), ZeroRun(3)), 'the zero run is typed at parse time'
+
+    def test_segments_with_a_digit_segment_that_is_not_all_zeroes_reads_it_as_a_literal(self) -> None:
+        #: Given
+        raw = 'adr-001'
+
+        #: When
+        namespace = AspectNamespace.parse(raw)
+
+        #: Then
+        assert namespace.segments == (LiteralSegment('adr'), LiteralSegment('001')), 'only zeroes make a placeholder'
