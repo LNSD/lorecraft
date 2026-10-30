@@ -24,6 +24,7 @@ status: "proposed"
 4. **Retain existing hierarchy resolution.** When several specs match a document, apply them from broad to narrow; resolve a document base from the longest existing literal document-name prefix. A missing intermediate name remains valid and does not make the chain fail.
 5. **Treat sequence order as repository policy.** The placeholder describes digit width only. Lorecraft does not require sequences to start at one, be consecutive, or appear in numeric order.
 6. **Accept digit-leading document and namespace names.** A document name or namespace may begin with a digit, such as `0001-subject`, and a namespace name such as `adr-0000-nspace` is valid, whether or not a placeholder governs it.
+7. **Let a placeholder spec alone establish its corpus.** In `adr-0000`, the corpus is `adr` and `0000` is the numeric document-name prefix of that width. With `adr-0000.md` as the only spec, the corpus `adr` exists and `adr/0001-subject.md` is governed and checked; `adr/001-x.md` is not governed by it.
 
 ## Alternatives Considered
 
@@ -55,6 +56,7 @@ status: "proposed"
 - [ ] Ordinary literal hyphen-prefix matching and broad-to-narrow spec application remain intact
 - [ ] Numeric placeholder matching does not alter document-to-document base chains or spec-to-spec hierarchy
 - [ ] Digit-leading document names (`0001-subject.md`) are discovered and namespace names (`adr-0000-nspace`) parse
+- [ ] `adr-0000.md` with no `adr.md` spec establishes the corpus `adr`, and `adr/0001-<subject>.md` is discovered and checked
 - [ ] Gaps and document listing order receive no validation
 
 ## References
