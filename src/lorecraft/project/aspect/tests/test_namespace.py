@@ -16,6 +16,37 @@ from ..namespace import (
 
 @pytest.mark.unit
 class TestAspectNamespace:
+    @pytest.mark.parametrize(
+        ('token', 'value'),
+        [
+            ('YYYY', '2026'),
+            ('YYYYMM', '202602'),
+            ('YYYYMMDD', '20260228'),
+            ('YYYYMMDDHH', '2026022823'),
+            ('YYYYMMDDHHMM', '202602282359'),
+            ('YYYYMMDDHHMMSS', '20260228235959'),
+            ('YYYYMMDDHHMMSSZZZ', '20260228235959UTC'),
+        ],
+    )
+    def test_timestamp_placeholder_matches_its_fixed_precision(self, token: str, value: str) -> None:
+        namespace = AspectNamespace.parse(f'event-{token}')
+        filename = AspectFilename.parse(f'event-{value}-record')
+
+        assert namespace.is_prefix_of(filename), 'the supported timestamp prefix governs its document'
+
+    @pytest.mark.parametrize(
+        'value',
+        ['00000228', '20260230', '20261301', '2026022824', '20260228235960', '20260228235959+00:00'],
+    )
+    def test_timestamp_placeholder_rejects_invalid_calendar_time_or_timezone(self, value: str) -> None:
+        namespace = AspectNamespace.parse('event-YYYYMMDD')
+
+        assert not namespace.is_prefix_of(f'event-{value}'), 'invalid or over-width timestamp values do not match'
+
+    def test_parse_with_an_unsupported_timestamp_token_raises_character_error(self) -> None:
+        with pytest.raises(InvalidAspectNamespaceCharacterError):
+            AspectNamespace.parse('event-YYYYMMDDH')
+
     def test_parse_with_a_single_letter_preserves_namespace(self) -> None:
         #: Given
         valid_namespace = 'a'
