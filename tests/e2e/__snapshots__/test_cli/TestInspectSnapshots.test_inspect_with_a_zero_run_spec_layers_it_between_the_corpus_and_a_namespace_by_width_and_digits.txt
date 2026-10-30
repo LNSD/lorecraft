@@ -1,0 +1,14 @@
+<workspace>
+├── corpora (1)
+│   └── adr (docs/adr)
+│       ├── specs (3)
+│       │   ├── adr: adr.spec.json [base: none]
+│       │   ├── adr-0000: adr-0000.spec.json [base: adr]
+│       │   └── adr-0000-nspace: adr-0000-nspace.spec.json [base: adr-0000]
+│       └── documents (4)
+│           ├── 00001-wide.md [governed_by: adr] [base_chain: 00001-wide]
+│           ├── 0001-subject.md [governed_by: adr, adr-0000] [base_chain: 0001-subject]
+│           ├── 0002-nspace.md [governed_by: adr, adr-0000, adr-0000-nspace] [base_chain: 0002-nspace]
+│           └── 0a01-letter.md [governed_by: adr] [base_chain: 0a01-letter]
+├── agent skills directories (0)
+└── skills (0)
