@@ -463,6 +463,28 @@ class TestLoadWorkspaceAmpup:
 
 
 @pytest.mark.it
+class TestLoadWorkspacePlaceholderOnly:
+    def test_load_workspace_with_a_placeholder_spec_alone_establishes_its_corpus(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(
+            tmp_path,
+            prose=('adr-0000',),
+            schemas=(),
+            documents=('adr/0001-subject.md', 'adr/001-x.md'),
+        )
+
+        #: When
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
+
+        #: Then
+        assert _corpus_names(model) == (CorpusName.parse('adr'),), 'adr-0000 alone establishes the corpus adr'
+        assert _namespaces(model, CorpusName.parse('adr')) == ('0000',), 'the placeholder spec is its namespace'
+        assert _document_paths(model) == ('docs/adr/0001-subject.md', 'docs/adr/001-x.md'), 'both are listed'
+
+
+@pytest.mark.it
 class TestLoadWorkspaceLorecraft:
     def test_load_workspace_with_the_lorecraft_tree_lists_code_and_feat(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository

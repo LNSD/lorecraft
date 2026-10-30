@@ -321,6 +321,25 @@ class TestGovernance:
             'a namespace never governs alone: no frontmatter schema applies without a corpus structure specification'
         )
 
+    def test_frontmatter_schemas_with_a_placeholder_spec_alone_applies_its_schema(self) -> None:
+        #: Given
+        files, structure = _spec_files('adr-0000', frontmatter=True, structure=False)
+        namespaces = FrozenMapping({AspectNamespace.parse('0000'): CorpusNamespace(files=files, structure=structure)})
+        corpus = Corpus(
+            corpus_spec=CorpusSpec(name=CorpusSpecName(CorpusName.parse('adr')), files=(), structure=None),
+            namespaces=namespaces,
+            filenames=frozenset(),
+        )
+        governance = corpus.governance(AspectFilename.parse('0001-subject'))
+
+        #: When
+        schemas = governance.frontmatter_schemas()
+
+        #: Then
+        assert len(schemas) == 1, (
+            'a placeholder spec establishes its corpus, so its schema governs without a corpus spec'
+        )
+
     def test_frontmatter_schemas_with_a_corpus_structure_without_a_schema_returns_no_schemas(self) -> None:
         #: Given
         corpus_spec = _corpus_spec('code', frontmatter=False, structure=True)

@@ -280,6 +280,46 @@ class TestAspectNamespace:
         #: Then
         assert namespace.segments == (LiteralSegment('adr'), ZeroRun(3)), 'the zero run is typed at parse time'
 
+    def test_opens_with_placeholder_with_a_zero_run_alone_returns_true(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('0000')
+
+        #: When
+        result = namespace.opens_with_placeholder
+
+        #: Then
+        assert result is True, 'a lone zero run is a placeholder'
+
+    def test_opens_with_placeholder_with_a_zero_run_before_a_word_returns_true(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('000-x')
+
+        #: When
+        result = namespace.opens_with_placeholder
+
+        #: Then
+        assert result is True, 'a leading zero run is a placeholder whatever follows'
+
+    def test_opens_with_placeholder_with_a_zero_run_after_a_word_returns_false(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('adr-000')
+
+        #: When
+        result = namespace.opens_with_placeholder
+
+        #: Then
+        assert result is False, 'a zero run after a word does not open the namespace'
+
+    def test_opens_with_placeholder_with_a_digit_segment_that_is_not_all_zeroes_returns_false(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('001')
+
+        #: When
+        result = namespace.opens_with_placeholder
+
+        #: Then
+        assert result is False, 'digits that are not all zeroes are a literal'
+
     def test_segments_with_a_digit_segment_that_is_not_all_zeroes_reads_it_as_a_literal(self) -> None:
         #: Given
         raw = 'adr-001'
