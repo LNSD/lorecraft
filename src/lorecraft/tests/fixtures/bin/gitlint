@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+"""Small deterministic gitlint stand-in for repository tests."""
+
+import argparse
+import sys
+from pathlib import Path
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', required=True)
+    parser.add_argument('--msg-filename', required=True)
+    parser.add_argument('--ignore', required=True)
+    parser.add_argument('--target', required=True)
+    arguments = parser.parse_args()
+    message = Path(arguments.msg_filename).read_text(encoding='utf-8')
+    if message.startswith('invalid message'):
+        print('1: UC2 invalid body')
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

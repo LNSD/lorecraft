@@ -124,6 +124,7 @@ alias test-all := test
 [group: 'test']
 test *EXTRA_FLAGS:
     @echo "🎯 Running tests..."
+    PATH="src/lorecraft/tests/fixtures/bin:$PATH" \
     uv run pytest {{EXTRA_FLAGS}}
 
 # Run unit tests (fast, no external dependencies)
