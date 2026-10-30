@@ -289,3 +289,35 @@ class TestAspectNamespace:
 
         #: Then
         assert namespace.segments == (LiteralSegment('adr'), LiteralSegment('001')), 'only zeroes make a placeholder'
+
+    def test_parse_with_a_leading_digit_keeps_the_namespace(self) -> None:
+        #: Given
+        valid_namespace = '0000-nspace'
+
+        #: When
+        namespace = AspectNamespace.parse(valid_namespace)
+
+        #: Then
+        assert str(namespace) == valid_namespace, 'a numbered namespace is valid and keeps its spelling'
+
+    def test_is_prefix_of_with_a_leading_zero_run_and_a_same_width_prefix_returns_true(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('0000-nspace')
+        filename = AspectFilename.parse('0001-nspace-subject')
+
+        #: When
+        is_prefix = namespace.is_prefix_of(filename)
+
+        #: Then
+        assert is_prefix, 'the leading zero run stands for the four-digit prefix'
+
+    def test_is_prefix_of_with_a_leading_zero_run_and_a_shorter_prefix_returns_false(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('0000-nspace')
+        filename = AspectFilename.parse('001-nspace-subject')
+
+        #: When
+        is_prefix = namespace.is_prefix_of(filename)
+
+        #: Then
+        assert not is_prefix, 'a three-digit prefix is another width'

@@ -60,22 +60,25 @@ repository works from.
 
 A directory directly under `docs/` is a corpus when it is a real directory, not a symlink, and at least one
 spec file in `docs/__meta__/` sits at its name. A corpus name is lowercase letters, digits and
-underscores, starting with a letter or an underscore: `docs/cli_specs/`, never `docs/cli-specs/`, since a
+underscores, starting with a letter or underscore: `docs/cli_specs/`, never `docs/cli-specs/`, since a
 hyphen in a spec's name separates the corpus from a namespace. `docs/__meta__/` is never a corpus.
 How the spec files are named and layered is [spec](spec.md)'s subject.
 
 ### Documents
 
 A document is a regular Markdown file directly inside a corpus, named in lowercase letters and digits, with
-single hyphens or underscores, starting with a letter. The hierarchy between documents is in their names, not
-in directories: a corpus is flat.
+single hyphens or underscores, starting with a letter or a digit, so `0001-subject.md` is a document. The
+hierarchy between documents is in their names, not in directories: a corpus is flat.
+
+A run of zeros in a spec's name matches a number of the same width: `adr-0000` governs `0001-subject.md`, not
+`001-subject.md`. Gaps are never checked.
 
 ### Left Out, Not Reported
 
 What the layout does not place is not part of the model, and lorecraft passes over it silently: a directory
 under `docs/` that no spec names, a Markdown file at `docs/` itself or in a subdirectory of a corpus,
 a symlinked file or corpus directory, and a file whose name does not parse. Only a path named on the command
-line is refused with a reason, since it was asked for.
+line is refused.
 
 ### One Snapshot
 

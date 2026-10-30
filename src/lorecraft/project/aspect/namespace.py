@@ -79,7 +79,7 @@ def _parse_segment(text: str) -> NamespaceSegment:
 class AspectNamespace:
     """A validated, possibly nested kebab-case namespace.
 
-    A namespace matches `[a-z][a-z0-9]*(?:-[a-z0-9]+)*`. It may contain any number of
+    A namespace matches `[a-z0-9][a-z0-9]*(?:-[a-z0-9]+)*`. It may contain any number of
     lowercase ASCII words, separated by single hyphens. A namespace matches a document name
     when the name is equal to it or begins with it followed by a hyphen. A segment of zeroes only,
     such as the `000` of `adr-000`, is a numeric placeholder: it matches a segment of digits only
@@ -141,7 +141,7 @@ class AspectNamespace:
 def _reject_invalid_namespace(namespace: str) -> None:
     if not namespace:
         raise EmptyAspectNamespaceError()
-    if namespace[0] not in ascii_lowercase:
+    if namespace[0] not in ascii_lowercase and namespace[0] not in digits:
         raise InvalidAspectNamespaceCharacterError(namespace, 0)
 
     previous_was_hyphen = False

@@ -158,3 +158,13 @@ class TestAspectName:
 
         #: Then
         assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
+
+    def test_parse_with_a_leading_digit_keeps_the_name(self) -> None:
+        #: Given
+        valid_name = '0001-subject'
+
+        #: When
+        name = AspectName.parse(valid_name)
+
+        #: Then
+        assert str(name) == valid_name, 'a numbered record name is valid and keeps its spelling'

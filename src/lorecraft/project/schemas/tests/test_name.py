@@ -62,3 +62,15 @@ class TestSpecName:
 
         #: Then
         assert exc_info.value.namespace == 'python_errors_handling', 'the error retains the rejected namespace'
+
+    def test_parse_with_a_numbered_namespace_reads_the_digit_leading_namespace(self) -> None:
+        #: Given
+        raw = 'adr-0000-nspace'
+
+        #: When
+        name = parse_spec_name(raw)
+
+        #: Then
+        assert name == NamespaceSpecName(CorpusName.parse('adr'), AspectNamespace.parse('0000-nspace')), (
+            'the zero run is part of the namespace, as the placeholder'
+        )

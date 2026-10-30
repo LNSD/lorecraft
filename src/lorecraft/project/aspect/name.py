@@ -38,10 +38,10 @@ class InvalidAspectNameCharacterError(Error):
 class AspectName:
     """A validated lowercase aspect name with hyphen or underscore separators.
 
-    A valid name matches `[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*`:
+    A valid name matches `[a-z0-9][a-z0-9]*(?:[-_][a-z0-9]+)*`:
 
     - Is not empty.
-    - Starts with a lowercase ASCII letter.
+    - Starts with a lowercase ASCII letter or a digit, so a numbered record such as `0001-subject` is a name.
     - Contains only lowercase ASCII letters or digits, with single hyphens or underscores
       between non-empty segments.
 
@@ -83,7 +83,7 @@ class AspectName:
 def _reject_invalid_aspect_name(name: str) -> None:
     if not name:
         raise EmptyAspectNameError()
-    if name[0] not in ascii_lowercase:
+    if name[0] not in ascii_lowercase and name[0] not in digits:
         raise InvalidAspectNameCharacterError(name, 0)
 
     previous_was_separator = False
