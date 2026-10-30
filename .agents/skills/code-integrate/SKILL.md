@@ -48,8 +48,15 @@ to the old remote head, and records that fetched remote SHA for `squash`'s lease
 A FIX after a failed `apply --rebase` must pass `--rebase` again to keep the same mode.
 A gate that passes but leaves the tree changed is reported as `gates_failed`.
 
-`squash` soft-resets to the base, commits with `-s -S`, checks that `%G?` is `G`, then pushes: `-u` when the
-branch is new on the remote, otherwise `--force-with-lease` pinned to the `origin/<branch>` that `apply` fetched.
+`squash` first runs gitlint with `.github/gitlint` from the target repository, falling back to the code-integrate
+checkout when the target has no config. If neither checkout has the config, it refuses as a setup error. The
+script's `--ignore` list restates the config's three ignored body rules. It also ignores
+`contrib-body-requires-signed-off-by` because the squash commit adds its sign-off. A violation refuses the squash
+with exit code 3 and includes gitlint's output in `reason`; the branch is unchanged and nothing is pushed. If
+gitlint is missing, the refusal names `just install-gitlint`. After lint passes, it soft-resets to the base,
+commits with `-s -S`, checks that `%G?` is
+`G`, then pushes: `-u` when the branch is new on the remote, otherwise `--force-with-lease` pinned to the
+`origin/<branch>` that `apply` fetched.
 After `apply --rebase`, it uses the recorded base and lease SHA and allows the rebased branch not to contain
 `origin/<branch>`. A remote update after `apply` still makes the lease fail. It refuses when the tree is not clean,
 when the default-mode branch does not contain `origin/<branch>`, and when the push is rejected; each time it puts
@@ -74,4 +81,4 @@ the branch back and pushes nothing, as it does when the commit is not signed.
 | 0 | `ok` | Continue |
 | 1 | A gate failed | Read the log, send the failure back as a FIX |
 | 2 | The patches do not apply; `git am` was aborted and the branch is untouched | Resolve the patch conflict with the Writer against the selected base |
-| 3 | Refused (`--repo` is not a git repository, dirty tree, local branch not descending from its start, unsigned commit, base not an ancestor, remote ahead of the branch in default mode, or stale rebase lease) or a git command failed | Read `reason`; fix the setup, do not work around it |
+| 3 | Refused (`--repo` is not a git repository, dirty tree, invalid squash message, missing gitlint, local branch not descending from its start, unsigned commit, base not an ancestor, remote ahead of the branch in default mode, or stale rebase lease) or a git command failed | Read `reason`; fix the setup, do not work around it |

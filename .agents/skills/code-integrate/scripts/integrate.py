@@ -11,6 +11,8 @@ Exit codes: 0 ok, 1 a gate failed, 2 the patches do not apply, 3 refused or a co
 import argparse
 import hashlib
 import json
+import shutil
+import subprocess
 import sys
 from collections.abc import Mapping
 from pathlib import Path
@@ -133,6 +135,55 @@ def squash(repo: Path, branch: str, base: str, message_file: Path, log: Path) ->
     expected = state['expected_remote'] if state is not None else gitflow.rev_parse(repo, log, f'origin/{branch}')
     if state is None and expected is not None and not gitflow.is_ancestor(repo, log, expected, old_head):
         return {'status': 'refused', 'reason': f'origin/{branch} at {expected} is not in {branch}'}, EXIT_REFUSED
+
+    if shutil.which('gitlint') is None:
+        return {
+            'status': 'refused',
+            'reason': 'gitlint is required; install it with `just install-gitlint`',
+            'head_sha': old_head,
+        }, EXIT_REFUSED
+    config = repo / '.github' / 'gitlint'
+    if not config.is_file():
+        config = Path(__file__).resolve().parents[4] / '.github' / 'gitlint'
+    if not config.is_file():
+        return {
+            'status': 'refused',
+            'reason': 'gitlint config is missing from the target repository and code-integrate checkout',
+            'head_sha': old_head,
+        }, EXIT_REFUSED
+    linted = subprocess.run(
+        [
+            'gitlint',
+            '--config',
+            str(config),
+            '--msg-filename',
+            str(message_file.resolve()),
+            '--ignore',
+            'contrib-body-requires-signed-off-by,body-is-missing,body-min-length,body-max-line-length',
+            '--target',
+            str(repo),
+        ],
+        cwd=config.parent.parent,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    with log.open('a') as file:
+        file.write(f'$ gitlint --config {config} --msg-filename {message_file.resolve()}\n')
+        file.write(f'{linted.stdout}{linted.stderr}[exit {linted.returncode}]\n')
+    if linted.returncode != 0:
+        output = (linted.stdout + linted.stderr).strip()
+        if output.startswith(('Config Error:', 'Error:')):
+            return {
+                'status': 'refused',
+                'reason': f'gitlint setup failed: {output}',
+                'head_sha': old_head,
+            }, EXIT_REFUSED
+        return {
+            'status': 'refused',
+            'reason': f'gitlint rejected the squash message:\n{output}',
+            'head_sha': old_head,
+        }, EXIT_REFUSED
 
     gitflow.git(repo, log, 'reset', '--soft', base_sha)
     committed = gitflow.run(repo, log, ['git', 'commit', '-s', '-S', '-F', str(message_file.resolve())])
