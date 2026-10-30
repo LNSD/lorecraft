@@ -369,6 +369,30 @@ class TestInspectSnapshots:
             'the tree drawn from the working directory matches the reviewed snapshot'
         )
 
+    def test_inspect_with_numbered_documents_governs_those_of_the_same_width_by_a_zero_run_spec(
+        self, tmp_path: Path, faker: Faker, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        workspace = Workspace(
+            specs=[Spec('adr'), Spec('adr-0000-nspace')],
+            documents=[
+                Document('adr', '0001-nspace-subject'),
+                Document('adr', '0003-nspace-other'),
+                Document('adr', '001-nspace-narrow'),
+            ],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('inspect', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.replace(str(root), _ROOT_PLACEHOLDER) == expected, (
+            'the four-digit documents are governed by the zero-run spec and the three-digit one is not'
+        )
+
     def test_inspect_with_json_over_the_workspace_fixture_prints_the_model_document(
         self, snapshot: SnapshotAssertion
     ) -> None:
@@ -1370,6 +1394,23 @@ class TestCheckCommand:
 
 @pytest.mark.e2e
 class TestGovernanceCoverage:
+    def test_check_with_a_gap_in_numbered_documents_reports_no_error(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('adr'), Spec('adr-0000-nspace')],
+            documents=[Document('adr', '0001-nspace-subject'), Document('adr', '0003-nspace-other')],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stdout
+        assert 'checked 2 subject(s): 0 error(s), 0 warning(s)' in result.stderr, (
+            'the digit-leading documents are checked, and the missing 0002 is not reported'
+        )
+
     def test_check_applies_skills_namespace_spec_to_matching_skill_namespaces(
         self, tmp_path: Path, faker: Faker
     ) -> None:

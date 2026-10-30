@@ -201,8 +201,39 @@ def _code_corpus(corpus_spec: CorpusSpec, namespaces: tuple[_NamespaceEntry, ...
     return Corpus(corpus_spec=corpus_spec, namespaces=FrozenMapping(dict(namespaces)), filenames=frozenset())
 
 
+def _numbered_corpus() -> Corpus:
+    """The corpus `adr`, with its corpus spec and the numbered namespace `0000`, and no document."""
+    files, structure = _spec_files('adr-0000', frontmatter=True, structure=False)
+    namespaces = FrozenMapping({AspectNamespace.parse('0000'): CorpusNamespace(files=files, structure=structure)})
+    return Corpus(corpus_spec=_corpus_spec('adr'), namespaces=namespaces, filenames=frozenset())
+
+
 @pytest.mark.unit
 class TestGovernance:
+    def test_governance_with_a_filename_of_the_zero_runs_width_applies_the_numbered_namespace_spec(self) -> None:
+        #: Given
+        corpus = _numbered_corpus()
+        filename = AspectFilename.parse('0001-subject')
+        expected = (_namespace_spec('adr-0000'),)
+
+        #: When
+        governance = corpus.governance(filename)
+
+        #: Then
+        assert governance.namespace_specs == expected, 'the zero run governs the same-width prefix'
+
+    def test_governance_with_a_filename_of_another_width_leaves_the_numbered_namespace_spec_out(self) -> None:
+        #: Given
+        corpus = _numbered_corpus()
+        filename = AspectFilename.parse('001-subject')
+        expected = ()
+
+        #: When
+        governance = corpus.governance(filename)
+
+        #: Then
+        assert governance.namespace_specs == expected, 'a prefix of another width stays outside the namespace'
+
     def test_frontmatter_schemas_with_the_corpus_spec_alone_returns_the_corpus_schema(self) -> None:
         #: Given
         corpus_spec = _corpus_spec('code')
@@ -1380,7 +1411,7 @@ class TestWorkspaceModel:
 
     def test_describe_item_for_a_skill_with_an_invalid_aspect_name_keeps_its_listed_name(self) -> None:
         #: Given
-        location = _regular_skill('.agents/skills/1skill')
+        location = _regular_skill('.agents/skills/Skill1')
         model = WorkspaceModel(
             corpus_values=frozenset(),
             skills_dirs=frozenset(),
@@ -1394,7 +1425,7 @@ class TestWorkspaceModel:
 
         #: Then
         assert descriptor.name is None, 'a skill directory need not follow the aspect-name format'
-        assert descriptor.listed_name == '1skill', 'the model keeps the original skill directory name'
+        assert descriptor.listed_name == 'Skill1', 'the model keeps the original skill directory name'
 
     def test_skills_with_three_skills_returns_their_refs_in_directory_order(self, skills_model: WorkspaceModel) -> None:
         #: Given
